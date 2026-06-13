@@ -1,0 +1,119 @@
+# ============================================
+# DOCKER COMPOSE CONFIGURATION
+# ============================================
+# This file defines all containers and how they work together
+# docker-compose up starts everything with one command
+
+
+
+services:
+  # ---------- DATABASE SERVICE ----------
+  database:
+    image: mysql:8.0           # Use MySQL 8.0 image from Docker Hub
+    container_name: app_db     # Name of the container (used by other containers)
+    environment:               # Environment variables passed to container
+      MYSQL_ROOT_PASSWORD: root123  # MySQL root password
+      MYSQL_DATABASE: gameboard_db    # Auto-create this database
+    volumes:
+      - ./database:/docker-entrypoint-initdb.d  # ✅ MySQL auto-runs SQL files from this directory   # ← This auto-runs your SQL file
+    networks:
+      - app_net                # Attach to our custom network
+    ports:
+      - "3306:3306"            # Map host port 3306 to container port 3306
+    # healthcheck:             # (Optional) ensures database is ready before others start
+    #   test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+    #   timeout: 20s
+    #   retries: 10
+
+  # ---------- PLAYSTATION SERVER SERVICE ----------
+  playstation_server:
+    build: ./playstation_server          # Build using Dockerfile in playstation_server folder
+    container_name: playstation_server   # Name of the container
+    networks:
+      - app_net                # Same network as database
+    depends_on:
+      - database               # Wait for database to start first
+    ports:                   # (Optional) uncomment to access from host
+      - "8080:8080"          # Map host port 8080 to container port 8080
+
+
+  # ---------- XBOX SERVER SERVICE ----------
+  xbox_server:
+    build: ./xbox_server          # Build using Dockerfile in xbox_server folder
+    container_name: xbox_server   # Name of the container
+    networks:
+      - app_net                # Same network as database
+    depends_on:
+      - database               # Wait for database to start first
+    ports:                   # (Optional) uncomment to access from host
+      - "8081:8081"          # Map host port 8081 to container port 8081
+
+
+  # ---------- NINTENDO SERVER SERVICE ----------
+  nintendo_server:
+    build: ./nintendo_server     # Build using Dockerfile in nintendo_server folder
+    container_name: nintendo_server
+    networks:
+      - app_net
+    depends_on:
+      - database
+    ports:
+      - "8082:8082"          # Map host port 8082 to container port 8082
+
+  # ---------- PC SERVER SERVICE ----------
+  pc_server:
+    build: ./pc_server     # Build using Dockerfile in pc_server folder
+    container_name: pc_server
+    networks:
+      - app_net
+    depends_on:
+      - database
+    ports:
+      - "8083:8083"          # Map host port 8083 to container port 8083
+
+
+
+  # ---------- PLAYSTATION CLIENT SERVICE ----------
+  playstation_client:
+    build: ./playstation_client          # Build using Dockerfile in playstation_client folder
+    container_name: playstation_client
+    networks:
+      - app_net
+    depends_on:
+      - playstation_server               # Wait for Playstation server to start first
+    # This container will run once and exit (not a long-running service)
+  
+    # ---------- XBOX CLIENT SERVICE ----------
+  xbox_client:
+    build: ./xbox_client          # Build using Dockerfile in xbox_client folder
+    container_name: xbox_client
+    networks:
+      - app_net
+    depends_on:
+      - xbox_server               # Wait for Xbox server to start first
+    # This container will run once and exit (not a long-running service)
+
+  # ---------- NINTENDO CLIENT SERVICE ----------
+  nintendo_client:
+    build: ./nintendo_client     # Build using Dockerfile in nintendo_client folder
+    container_name: nintendo_client
+    networks:
+      - app_net
+    depends_on:
+      - nintendo_server          # Wait for Nintendo server to start first
+    # This container will run once and exit
+  
+   # ---------- PC CLIENT SERVICE ----------
+  pc_client:
+    build: ./pc_client     # Build using Dockerfile in pc_client folder
+    container_name: pc_client
+    networks:
+      - app_net
+    depends_on:
+      - pc_server          # Wait for PC server to start first
+    # This container will run once and exit
+
+# ---------- NETWORK DEFINITION ----------
+networks:
+  app_net:
+    driver: bridge             # Default network driver for container communication
